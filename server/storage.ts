@@ -1,4 +1,6 @@
 import { users, books, reviews, type User, type Book, type Review, type InsertUser, type InsertBook, type InsertReview, type BookWithReviews, type ReviewWithUser } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, ilike, and, count, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -445,4 +447,291 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values({
+        ...insertUser,
+        bio: insertUser.bio || null,
+        avatar: insertUser.avatar || null,
+      })
+      .returning();
+    return user;
+  }
+
+  async updateUser(id: number, userUpdate: Partial<InsertUser>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({
+        ...userUpdate,
+        bio: userUpdate.bio || null,
+        avatar: userUpdate.avatar || null,
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async getBook(id: number): Promise<Book | undefined> {
+    const [book] = await db.select().from(books).where(eq(books.id, id));
+    return book || undefined;
+  }
+
+  async getBookWithReviews(id: number): Promise<BookWithReviews | undefined> {
+    const book = await this.getBook(id);
+    if (!book) return undefined;
+
+    const bookReviews = await db
+      .select({
+        id: reviews.id,
+        bookId: reviews.bookId,
+        userId: reviews.userId,
+        rating: reviews.rating,
+        content: reviews.content,
+        likes: reviews.likes,
+        createdAt: reviews.createdAt,
+        user: {
+          id: users.id,
+          name: users.name,
+          avatar: users.avatar,
+        },
+      })
+      .from(reviews)
+      .innerJoin(users, eq(reviews.userId, users.id))
+      .where(eq(reviews.bookId, id))
+      .orderBy(desc(reviews.createdAt));
+
+    return {
+      ...book,
+      reviews: bookReviews,
+    };
+  }
+
+  async getBooks(params: { search?: string; genre?: string; limit?: number; offset?: number } = {}): Promise<{ books: Book[]; total: number }> {
+    let query = db.select().from(books);
+    let countQuery = db.select({ count: count() }).from(books);
+
+    const conditions = [];
+    if (params.search) {
+      const searchCondition = ilike(books.title, `%${params.search}%`);
+      conditions.push(searchCondition);
+    }
+    if (params.genre) {
+      conditions.push(eq(books.genre, params.genre));
+    }
+
+    if (conditions.length > 0) {
+      const whereCondition = conditions.length === 1 ? conditions[0] : and(...conditions);
+      query = query.where(whereCondition);
+      countQuery = countQuery.where(whereCondition);
+    }
+
+    const [{ count: total }] = await countQuery;
+    const booksResult = await query
+      .orderBy(desc(books.averageRating))
+      .limit(params.limit || 12)
+      .offset(params.offset || 0);
+
+    return { books: booksResult, total };
+  }
+
+  async getFeaturedBooks(): Promise<Book[]> {
+    return await db
+      .select()
+      .from(books)
+      .orderBy(desc(books.averageRating))
+      .limit(4);
+  }
+
+  async createBook(insertBook: InsertBook): Promise<Book> {
+    const [book] = await db
+      .insert(books)
+      .values({
+        ...insertBook,
+        isbn: insertBook.isbn || null,
+        coverUrl: insertBook.coverUrl || null,
+      })
+      .returning();
+    return book;
+  }
+
+  async updateBookRating(bookId: number): Promise<void> {
+    const result = await db
+      .select({
+        avgRating: sql<number>`AVG(${reviews.rating})`,
+        totalReviews: count(reviews.id),
+      })
+      .from(reviews)
+      .where(eq(reviews.bookId, bookId));
+
+    const { avgRating, totalReviews } = result[0] || { avgRating: 0, totalReviews: 0 };
+
+    await db
+      .update(books)
+      .set({
+        averageRating: avgRating ? Math.round(avgRating * 10) / 10 : 0,
+        totalReviews: totalReviews || 0,
+      })
+      .where(eq(books.id, bookId));
+  }
+
+  async getReview(id: number): Promise<Review | undefined> {
+    const [review] = await db.select().from(reviews).where(eq(reviews.id, id));
+    return review || undefined;
+  }
+
+  async getReviewsForBook(bookId: number): Promise<ReviewWithUser[]> {
+    return await db
+      .select({
+        id: reviews.id,
+        bookId: reviews.bookId,
+        userId: reviews.userId,
+        rating: reviews.rating,
+        content: reviews.content,
+        likes: reviews.likes,
+        createdAt: reviews.createdAt,
+        user: {
+          id: users.id,
+          name: users.name,
+          avatar: users.avatar,
+        },
+        book: {
+          id: books.id,
+          title: books.title,
+        },
+      })
+      .from(reviews)
+      .innerJoin(users, eq(reviews.userId, users.id))
+      .innerJoin(books, eq(reviews.bookId, books.id))
+      .where(eq(reviews.bookId, bookId))
+      .orderBy(desc(reviews.createdAt));
+  }
+
+  async getReviewsByUser(userId: number): Promise<ReviewWithUser[]> {
+    return await db
+      .select({
+        id: reviews.id,
+        bookId: reviews.bookId,
+        userId: reviews.userId,
+        rating: reviews.rating,
+        content: reviews.content,
+        likes: reviews.likes,
+        createdAt: reviews.createdAt,
+        user: {
+          id: users.id,
+          name: users.name,
+          avatar: users.avatar,
+        },
+        book: {
+          id: books.id,
+          title: books.title,
+        },
+      })
+      .from(reviews)
+      .innerJoin(users, eq(reviews.userId, users.id))
+      .innerJoin(books, eq(reviews.bookId, books.id))
+      .where(eq(reviews.userId, userId))
+      .orderBy(desc(reviews.createdAt));
+  }
+
+  async getRecentReviews(limit: number = 6): Promise<ReviewWithUser[]> {
+    return await db
+      .select({
+        id: reviews.id,
+        bookId: reviews.bookId,
+        userId: reviews.userId,
+        rating: reviews.rating,
+        content: reviews.content,
+        likes: reviews.likes,
+        createdAt: reviews.createdAt,
+        user: {
+          id: users.id,
+          name: users.name,
+          avatar: users.avatar,
+        },
+        book: {
+          id: books.id,
+          title: books.title,
+        },
+      })
+      .from(reviews)
+      .innerJoin(users, eq(reviews.userId, users.id))
+      .innerJoin(books, eq(reviews.bookId, books.id))
+      .orderBy(desc(reviews.createdAt))
+      .limit(limit);
+  }
+
+  async createReview(insertReview: InsertReview): Promise<Review> {
+    const [review] = await db
+      .insert(reviews)
+      .values(insertReview)
+      .returning();
+    
+    await this.updateBookRating(insertReview.bookId);
+    return review;
+  }
+
+  async updateReview(id: number, reviewUpdate: Partial<InsertReview>): Promise<Review | undefined> {
+    const [review] = await db
+      .update(reviews)
+      .set(reviewUpdate)
+      .where(eq(reviews.id, id))
+      .returning();
+    
+    if (review) {
+      await this.updateBookRating(review.bookId);
+    }
+    
+    return review || undefined;
+  }
+
+  async deleteReview(id: number): Promise<boolean> {
+    const review = await this.getReview(id);
+    if (!review) return false;
+
+    await db.delete(reviews).where(eq(reviews.id, id));
+    await this.updateBookRating(review.bookId);
+    return true;
+  }
+
+  async likeReview(id: number): Promise<Review | undefined> {
+    const [review] = await db
+      .update(reviews)
+      .set({ likes: sql`${reviews.likes} + 1` })
+      .where(eq(reviews.id, id))
+      .returning();
+    
+    return review || undefined;
+  }
+
+  async getGenres(): Promise<{ name: string; count: number }[]> {
+    const result = await db
+      .select({
+        name: books.genre,
+        count: count(books.id),
+      })
+      .from(books)
+      .groupBy(books.genre)
+      .orderBy(desc(count(books.id)));
+
+    return result;
+  }
+}
+
+export const storage = new DatabaseStorage();

@@ -73,3 +73,25 @@ export type ReviewWithUser = Review & {
   user: Pick<User, 'id' | 'name' | 'avatar'>;
   book: Pick<Book, 'id' | 'title'>;
 };
+
+// Relations
+import { relations } from "drizzle-orm";
+
+export const usersRelations = relations(users, ({ many }) => ({
+  reviews: many(reviews),
+}));
+
+export const booksRelations = relations(books, ({ many }) => ({
+  reviews: many(reviews),
+}));
+
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  user: one(users, {
+    fields: [reviews.userId],
+    references: [users.id],
+  }),
+  book: one(books, {
+    fields: [reviews.bookId],
+    references: [books.id],
+  }),
+}));
