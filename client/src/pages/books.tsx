@@ -62,9 +62,10 @@ export default function Books() {
   };
 
   const handleGenreChange = (genre: string) => {
-    setSelectedGenre(genre);
+    const actualGenre = genre === "all" ? "" : genre;
+    setSelectedGenre(actualGenre);
     setCurrentPage(1);
-    updateURL(localSearch, genre, 1);
+    updateURL(localSearch, actualGenre, 1);
   };
 
   const handlePageChange = (page: number) => {
@@ -113,7 +114,7 @@ export default function Books() {
                   <SelectValue placeholder="All Genres" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Genres</SelectItem>
+                  <SelectItem value="all">All Genres</SelectItem>
                   {genres?.map((genre) => (
                     <SelectItem key={genre.name} value={genre.name}>
                       {genre.name} ({genre.count})
