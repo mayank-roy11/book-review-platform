@@ -1,7 +1,8 @@
-<img width="2762" height="1546" alt="Screenshot 2025-08-15 023240" src="https://github.com/user-attachments/assets/1391e1be-5c89-45f0-beab-bf7d878e18ca" />
-<img width="2694" height="1545" alt="Screenshot 2025-08-15 023139" src="https://github.com/user-attachments/assets/6cf40170-2b58-4da1-91f4-0d01fa2fbb9f" />
-<img width="2777" height="1540" alt="Screenshot 2025-08-15 023443" src="https://github.com/user-attachments/assets/74947437-2af1-4ed5-b7ce-6f6f1cabbbce" />
-<img width="2739" height="1537" alt="Screenshot 2025-08-15 023103" src="https://github.com/user-attachments/assets/5cb63504-8109-4c51-a8fd-50df98772cd7" />
+<img width="1500" height="1500" alt="Screenshot 2025-08-15 023240" src="https://github.com/user-attachments/assets/1391e1be-5c89-45f0-beab-bf7d878e18ca" />
+<img width="1500" height="1500" alt="Screenshot 2025-08-15 023139" src="https://github.com/user-attachments/assets/6cf40170-2b58-4da1-91f4-0d01fa2fbb9f" />
+<img width="1500" height="1500" alt="Screenshot 2025-08-15 023139" src="https://github.com/user-attachments/assets/6cf40170-2b58-4da1-91f4-0d01fa2fbb9f" />
+<img width="1500" height="1500" alt="Screenshot 2025-08-15 023443" src="https://github.com/user-attachments/assets/74947437-2af1-4ed5-b7ce-6f6f1cabbbce" />
+<img width="1500" height="1500" alt="Screenshot 2025-08-15 023103" src="https://github.com/user-attachments/assets/5cb63504-8109-4c51-a8fd-50df98772cd7" />
 
 
 # 📚 BookVerse – Full-Stack Book Review Platform
